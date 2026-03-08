@@ -22,3 +22,5 @@ Track performance metrics over time
 User-friendly frontend interface
 
 Free and customizable alternative to paid trade journals
+
+this is my self help project which i have learned so much from, i have developed much stronger frontend development skill, i have seen that there are so many thing to learn yet.
