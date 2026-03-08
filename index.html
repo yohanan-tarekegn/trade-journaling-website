@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trade Journal - Glitch</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <img src="logo.png" alt="Glitch Trades Logo" class="logo-img">
+                <p class="logo-motto">"Slow is smooth, smooth is fast"</p>
+            </div>
+            <nav class="nav-links">
+                <a href="#" class="active" id="nav-dashboard"><i class="icon-dashboard"></i> Dashboard</a>
+                <a href="#" id="nav-history"><i class="icon-history"></i> Calendar History</a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="topbar">
+                <div>
+                    <h1>Trading Journal Overview</h1>
+                    <div class="stats-filter-container">
+                        <label for="stats-filter">Timeframe Overview:</label>
+                        <select id="stats-filter" class="stats-filter">
+                            <option value="weekly">This Week</option>
+                            <option value="monthly" selected>This Month</option>
+                            <option value="yearly">This Year</option>
+                            <option value="all">All Time</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="user-profile">
+                    <img src="https://ui-avatars.com/api/?name=Trader+Pro&background=6366f1&color=fff" alt="User">
+                </div>
+            </header>
+
+            <!-- Dashboard Stats -->
+            <section class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon pnl-icon"></div>
+                    <div class="stat-details">
+                        <p class="stat-label">Total P&L</p>
+                        <h3 class="stat-value" id="stat-pnl">$0.00</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon winrate-icon"></div>
+                    <div class="stat-details">
+                        <p class="stat-label">Win Rate</p>
+                        <h3 class="stat-value" id="stat-winrate">0%</h3>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon trades-icon"></div>
+                    <div class="stat-details">
+                        <p class="stat-label">Total Trades</p>
+                        <h3 class="stat-value" id="stat-total-trades">0</h3>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Dashboard View -->
+            <div id="dashboard-view" class="view-section">
+                <!-- Content Split -->
+                <section class="content-split">
+                    <!-- Add Trade Form -->
+                    <div class="form-section panel popup-anim">
+                        <div class="panel-header">
+                            <h2>Log New Trade</h2>
+                            <p>Document your edge and confluences</p>
+                        </div>
+                        <form id="tradeForm" class="trade-form">
+                        <div class="form-group row">
+                            <div class="col">
+                                <label for="pair">Pair / Asset</label>
+                                <input type="text" id="pair" placeholder="e.g. EURUSD, BTC" required>
+                            </div>
+                            <div class="col">
+                                <label for="result">Result</label>
+                                <select id="result" required>
+                                    <option value="win">Win</option>
+                                    <option value="loss">Loss</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group row">
+                            <div class="col">
+                                <label for="risk">Risk Amount</label>
+                                <div class="input-with-select">
+                                    <input type="number" id="risk" step="0.01" placeholder="0.00" required>
+                                    <select id="riskType">
+                                        <option value="$">$</option>
+                                        <option value="%">%</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <label for="pnl">P&L (Gain/Loss $)</label>
+                                <input type="number" id="pnl" step="0.01" placeholder="0.00" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group border-top">
+                            <label for="confluences">Confluences & Notes</label>
+                            <textarea id="confluences" rows="4" placeholder="Why did you take this trade? Support/Resistance, EMA crossover, etc." required></textarea>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Screenshot Evidence</label>
+                            <div class="file-upload-wrapper" id="drop-zone">
+                                <input type="file" id="screenshot" accept="image/*" class="file-input">
+                                <div class="upload-content">
+                                    <span class="upload-icon">📸</span>
+                                    <p>Click to upload or drag image here</p>
+                                </div>
+                                <div id="image-preview-container" class="hidden">
+                                    <img id="image-preview" src="" alt="Screenshot preview">
+                                    <button type="button" id="remove-image" class="btn-icon">×</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-primary">
+                            <span>Save Trade Entry</span>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Recent Trades Feed -->
+                <div class="feed-section panel popup-anim" style="animation-delay: 0.1s;">
+                    <div class="panel-header">
+                        <h2>Recent Trades</h2>
+                        <p>Your latest executions</p>
+                    </div>
+                    <div class="trades-list" id="dashboardTradesList">
+                        <!-- Trades will be injected here via JS -->
+                        <div class="empty-state">
+                            <p>No trades logged yet. Start journaling!</p>
+                        </div>
+                    </div>
+                </div>
+                </section>
+            </div>
+
+            <!-- History / Calendar View -->
+            <div id="history-view" class="view-section hidden">
+                <div class="content-split">
+                    <!-- Calendar Section -->
+                    <div class="panel popup-anim">
+                        <div class="panel-header" style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <h2>Trade Calendar</h2>
+                                <p>Monthly performance overview</p>
+                            </div>
+                            <div class="calendar-nav">
+                                <button id="prev-month" class="btn-icon-small">&lt;</button>
+                                <h3 id="calendar-month-year">Month Year</h3>
+                                <button id="next-month" class="btn-icon-small">&gt;</button>
+                            </div>
+                        </div>
+                        <div class="calendar-grid-wrapper">
+                            <div class="calendar-header-days">
+                                <div class="weekday">Sun</div>
+                                <div class="weekday">Mon</div>
+                                <div class="weekday">Tue</div>
+                                <div class="weekday">Wed</div>
+                                <div class="weekday">Thu</div>
+                                <div class="weekday">Fri</div>
+                                <div class="weekday">Sat</div>
+                            </div>
+                            <!-- Days injected via JS -->
+                            <div id="calendar-days" class="calendar-days"></div>
+                        </div>
+                    </div>
+
+                    <!-- Selected Day Feed -->
+                    <div class="panel popup-anim" style="animation-delay: 0.1s;">
+                        <div class="panel-header">
+                            <h2 id="selected-date-title">All Trades</h2>
+                            <p>Executions for selected period</p>
+                        </div>
+                        <div class="trades-list" id="historyTradesList">
+                            <!-- Trades injected via JS -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
