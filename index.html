@@ -18,6 +18,7 @@
             <nav class="nav-links">
                 <a href="#" class="active" id="nav-dashboard"><i class="icon-dashboard"></i> Dashboard</a>
                 <a href="#" id="nav-history"><i class="icon-history"></i> Calendar History</a>
+                <a href="#" id="nav-analytics"><i class="icon-analytics"></i> Analytics</a>
             </nav>
         </aside>
 
@@ -114,16 +115,15 @@
                         </div>
 
                         <div class="form-group">
-                            <label>Screenshot Evidence</label>
+                            <label>Screenshot Evidence (Upload Multiple)</label>
                             <div class="file-upload-wrapper" id="drop-zone">
-                                <input type="file" id="screenshot" accept="image/*" class="file-input">
-                                <div class="upload-content">
+                                <input type="file" id="screenshot" accept="image/*" class="file-input" multiple>
+                                <div class="upload-content" id="upload-prompt">
                                     <span class="upload-icon">📸</span>
-                                    <p>Click to upload or drag image here</p>
+                                    <p>Click to upload or drag images here</p>
                                 </div>
-                                <div id="image-preview-container" class="hidden">
-                                    <img id="image-preview" src="" alt="Screenshot preview">
-                                    <button type="button" id="remove-image" class="btn-icon">×</button>
+                                <div id="image-preview-container" class="preview-grid hidden">
+                                    <!-- Image thumbnails injected here -->
                                 </div>
                             </div>
                         </div>
@@ -194,9 +194,39 @@
                 </div>
             </div>
 
+            <!-- Analytics View -->
+            <div id="analytics-view" class="view-section hidden">
+                <div class="panel popup-anim">
+                    <div class="panel-header">
+                        <h2>Analytics & Performance</h2>
+                        <p>Track your cumulative P&L growth over time</p>
+                    </div>
+                    <div class="chart-container" style="position: relative; height:60vh; width:100%">
+                        <canvas id="pnlChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
 
+    <!-- Trade Details Modal -->
+    <div id="trade-modal" class="modal-overlay hidden">
+        <div class="modal-content popup-anim">
+            <button class="modal-close" id="close-modal">×</button>
+            <div id="modal-body">
+                <!-- Data injected via JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Lightbox -->
+    <div id="lightbox" class="lightbox-overlay hidden">
+        <button class="modal-close" id="close-lightbox" style="z-index: 2010;">×</button>
+        <img id="lightbox-img" src="" alt="Enlarged Screenshot">
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

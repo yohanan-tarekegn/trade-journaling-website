@@ -22,8 +22,20 @@ const statTotalTrades = document.getElementById('stat-total-trades');
 // Views & Navigation
 const navDashboard = document.getElementById('nav-dashboard');
 const navHistory = document.getElementById('nav-history');
+const navAnalytics = document.getElementById('nav-analytics');
 const dashboardView = document.getElementById('dashboard-view');
 const historyView = document.getElementById('history-view');
+const analyticsView = document.getElementById('analytics-view');
+
+// Modal Elements
+const tradeModal = document.getElementById('trade-modal');
+const closeModal = document.getElementById('close-modal');
+const modalBody = document.getElementById('modal-body');
+
+// Lightbox Elements
+const lightbox = document.getElementById('lightbox');
+const lightboxImg = document.getElementById('lightbox-img');
+const closeLightbox = document.getElementById('close-lightbox');
 
 // Calendar Elements
 const calendarMonthYear = document.getElementById('calendar-month-year');
@@ -37,9 +49,10 @@ const statsFilter = document.getElementById('stats-filter');
 
 // State
 let trades = JSON.parse(localStorage.getItem('glitch_trades')) || [];
-let currentImageBase64 = null;
+let currentImagesBase64 = []; // Changed to array
 let currentCalendarDate = new Date();
 let selectedDateStr = null;
+let pnlChartInstance = null;
 
 // Initialize
 function init() {
@@ -50,9 +63,27 @@ function init() {
     // Set initial date string
     selectedDateStr = new Date().toISOString().split('T')[0];
     renderHistoryTrades();
+    initChart();
     
     // Attach event listeners
     if (statsFilter) statsFilter.addEventListener('change', updateStats);
+    
+    // Lightbox listeners
+    if (closeLightbox) {
+        closeLightbox.addEventListener('click', () => lightbox.classList.add('hidden'));
+    }
+    if (lightbox) {
+        lightbox.addEventListener('click', (e) => {
+            if(e.target === lightbox) lightbox.classList.add('hidden');
+        });
+    }
+}
+
+function openLightbox(src) {
+    if (lightbox && lightboxImg) {
+        lightboxImg.src = src;
+        lightbox.classList.remove('hidden');
+    }
 }
 
 // File Upload Logic
@@ -68,29 +99,52 @@ dropZone.addEventListener('drop', (e) => {
     e.preventDefault();
     dropZone.classList.remove('dragover');
     if (e.dataTransfer.files.length) {
-        screenshotInput.files = e.dataTransfer.files;
-        handleFileUpload({ target: screenshotInput });
+        handleFiles(e.dataTransfer.files);
     }
 });
 
-removeImageBtn.addEventListener('click', () => {
-    currentImageBase64 = null;
-    screenshotInput.value = '';
-    imagePreviewContainer.classList.add('hidden');
-    dropZone.querySelector('.upload-content').classList.remove('hidden');
-});
-
 function handleFileUpload(e) {
-    const file = e.target.files[0];
-    if (file && file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            currentImageBase64 = event.target.result;
-            imagePreview.src = currentImageBase64;
-            imagePreviewContainer.classList.remove('hidden');
-            dropZone.querySelector('.upload-content').classList.add('hidden');
-        };
-        reader.readAsDataURL(file);
+    handleFiles(e.target.files);
+}
+
+function handleFiles(files) {
+    imagePreviewContainer.innerHTML = ''; // Clear previous
+    currentImagesBase64 = []; // Reset array
+    
+    Array.from(files).forEach((file, index) => {
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const base64Str = event.target.result;
+                currentImagesBase64.push(base64Str);
+                
+                // Render Thumb
+                const thumb = document.createElement('div');
+                thumb.className = 'preview-item';
+                thumb.innerHTML = `
+                    <img src="${base64Str}" alt="Preview ${index}" style="cursor:zoom-in;" onclick="openLightbox('${base64Str}')">
+                    <button type="button" class="remove-thumb" data-index="${index}">×</button>
+                `;
+                imagePreviewContainer.appendChild(thumb);
+                
+                // Add remove listener
+                thumb.querySelector('.remove-thumb').addEventListener('click', (e) => {
+                    const idx = e.target.getAttribute('data-index');
+                    currentImagesBase64.splice(idx, 1);
+                    thumb.remove();
+                    if(currentImagesBase64.length === 0) {
+                        imagePreviewContainer.classList.add('hidden');
+                        document.getElementById('upload-prompt').classList.remove('hidden');
+                    }
+                });
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    if (files.length > 0) {
+        imagePreviewContainer.classList.remove('hidden');
+        document.getElementById('upload-prompt').classList.add('hidden');
     }
 }
 
@@ -136,7 +190,7 @@ tradeForm.addEventListener('submit', (e) => {
         riskType,
         pnl,
         confluences,
-        screenshot: currentImageBase64
+        screenshots: currentImagesBase64 // Changed to array
     };
     
     trades.unshift(newTrade); // Add to beginning
@@ -145,12 +199,14 @@ tradeForm.addEventListener('submit', (e) => {
     updateStats();
     renderCalendar();
     renderHistoryTrades();
+    updateChart();
     
     // Reset Form
     tradeForm.reset();
-    currentImageBase64 = null;
+    currentImagesBase64 = [];
+    imagePreviewContainer.innerHTML = '';
     imagePreviewContainer.classList.add('hidden');
-    dropZone.querySelector('.upload-content').classList.remove('hidden');
+    document.getElementById('upload-prompt').classList.remove('hidden');
 });
 
 function deleteTrade(id) {
@@ -161,6 +217,9 @@ function deleteTrade(id) {
     updateStats();
     renderCalendar();
     renderHistoryTrades();
+    updateChart();
+    
+    tradeModal.classList.add('hidden'); // Close modal if open
 }
 
 function saveTrades() {
@@ -200,12 +259,21 @@ function createTradeCard(trade) {
         let pnlColorClass = trade.pnl >= 0 ? 'positive' : 'negative';
         
         let imageHtml = '';
-        if (trade.screenshot) {
-            imageHtml = `<img src="${trade.screenshot}" class="trade-screenshot" alt="Trade Screenshot" onclick="window.open('${trade.screenshot}', '_blank')">`;
+        if (trade.screenshots && trade.screenshots.length > 0) {
+            let overlayHtml = trade.screenshots.length > 1 ? `<div class="image-indicator">+${trade.screenshots.length - 1}</div>` : '';
+            imageHtml = `
+                <div style="position:relative; display:inline-block; width:100%;">
+                    <img src="${trade.screenshots[0]}" class="trade-screenshot" alt="Trade Screenshot" onclick="openTradeModal('${trade.id}')">
+                    ${overlayHtml}
+                </div>
+            `;
+        } else if (trade.screenshot) {
+            // Backwards compatibility for single string legacy trades
+            imageHtml = `<img src="${trade.screenshot}" class="trade-screenshot" alt="Trade Screenshot" onclick="openTradeModal('${trade.id}')">`;
         }
 
         card.innerHTML = `
-            <div class="trade-header">
+            <div class="trade-header" style="cursor:pointer;" onclick="openTradeModal('${trade.id}')">
                 <div style="display: flex; gap: 10px; align-items: center;">
                     <span class="pair-badge">${trade.pair.toUpperCase()}</span>
                     <span class="result-pill ${trade.result}">${trade.result}</span>
@@ -232,12 +300,88 @@ function createTradeCard(trade) {
             ${imageHtml}
             
             <div class="trade-footer">
-            <button class="delete-btn" onclick="deleteTrade('${trade.id}')">Delete Trade</button>
+            <button class="delete-btn" onclick="deleteTrade('${trade.id}')" style="z-index: 10; position:relative;">Delete Trade</button>
         </div>
     `;
     
     return card;
 }
+
+// Modal Logic
+function openTradeModal(id) {
+    const trade = trades.find(t => t.id === id);
+    if(!trade) return;
+    
+    const dateFormatted = new Date(trade.date).toLocaleDateString(undefined, {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+    
+    let pnlDisplay = trade.pnl >= 0 ? `+$${trade.pnl.toFixed(2)}` : `-$${Math.abs(trade.pnl).toFixed(2)}`;
+    let pnlColorClass = trade.pnl >= 0 ? 'positive' : 'negative';
+    
+    let imagesArr = trade.screenshots || [];
+    if(trade.screenshot && imagesArr.length === 0) imagesArr = [trade.screenshot];
+    
+    let galleryHtml = '';
+    if (imagesArr.length > 0) {
+        galleryHtml = `<div class="modal-gallery">` + 
+            imagesArr.map(src => `<img src="${src}" onclick="openLightbox('${src}')">`).join('') + 
+            `</div>`;
+    }
+    
+    modalBody.innerHTML = `
+        <div style="margin-bottom: 2rem;">
+            <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 1rem;">
+                <span class="pair-badge" style="font-size: 1.2rem;">${trade.pair.toUpperCase()}</span>
+                <span class="result-pill ${trade.result}" style="font-size: 1rem; padding: 0.5rem 1rem;">${trade.result}</span>
+            </div>
+            <p style="color: var(--text-secondary);">${dateFormatted}</p>
+        </div>
+        
+        <div class="stats-grid" style="margin-bottom: 2rem;">
+            <div class="stat-card" style="padding: 1rem;">
+                <div>
+                    <p class="stat-label">Risk</p>
+                    <h3 class="stat-value" style="font-size: 1.2rem;">${trade.riskType === '$' ? '$' : ''}${trade.risk}${trade.riskType === '%' ? '%' : ''}</h3>
+                </div>
+            </div>
+            <div class="stat-card" style="padding: 1rem;">
+                <div>
+                    <p class="stat-label">Net P&L</p>
+                    <h3 class="stat-value ${pnlColorClass}" style="font-size: 1.2rem;">${pnlDisplay}</h3>
+                </div>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 2rem;">
+            <h3 style="margin-bottom: 1rem; font-size: 1.1rem;">Confluences & Notes</h3>
+            <div style="background: rgba(0,0,0,0.3); padding: 1.5rem; border-radius: var(--radius-md); line-height: 1.6;">
+                ${trade.confluences.replace(/\n/g, '<br>')}
+            </div>
+        </div>
+        
+        ${galleryHtml ? `
+            <div>
+                <h3 style="margin-bottom: 0.5rem; font-size: 1.1rem;">Attachments (${imagesArr.length})</h3>
+                <p style="color: var(--text-secondary); font-size: 0.85rem;">Click any image to view full screen</p>
+                ${galleryHtml}
+            </div>
+        ` : ''}
+        
+        <div style="margin-top: 3rem; text-align: right; border-top: 1px solid var(--border-color); padding-top: 1rem;">
+            <button class="delete-btn" onclick="deleteTrade('${trade.id}')" style="color: var(--loss-color); font-weight:600;">🗑️ Delete this Trade</button>
+        </div>
+    `;
+    
+    tradeModal.classList.remove('hidden');
+}
+
+closeModal.addEventListener('click', () => {
+    tradeModal.classList.add('hidden');
+});
+tradeModal.addEventListener('click', (e) => {
+    if(e.target === tradeModal) tradeModal.classList.add('hidden');
+});
 
 // Stats Calculation
 function updateStats() {
@@ -293,22 +437,31 @@ function updateStats() {
 }
 
 // Navigation Logic
+function switchView(activeNav, activeView) {
+    [navDashboard, navHistory, navAnalytics].forEach(n => n?.classList.remove('active'));
+    [dashboardView, historyView, analyticsView].forEach(v => v?.classList.add('hidden'));
+    
+    if(activeNav) activeNav.classList.add('active');
+    if(activeView) activeView.classList.remove('hidden');
+}
+
 navDashboard.addEventListener('click', (e) => {
     e.preventDefault();
-    navDashboard.classList.add('active');
-    navHistory.classList.remove('active');
-    dashboardView.classList.remove('hidden');
-    historyView.classList.add('hidden');
+    switchView(navDashboard, dashboardView);
 });
 
 navHistory.addEventListener('click', (e) => {
     e.preventDefault();
-    navHistory.classList.add('active');
-    navDashboard.classList.remove('active');
-    historyView.classList.remove('hidden');
-    dashboardView.classList.add('hidden');
+    switchView(navHistory, historyView);
     renderCalendar();
 });
+
+if(navAnalytics) {
+    navAnalytics.addEventListener('click', (e) => {
+        e.preventDefault();
+        switchView(navAnalytics, analyticsView);
+    });
+}
 
 // Calendar Logic
 prevMonthBtn.addEventListener('click', () => {
@@ -431,6 +584,114 @@ function renderHistoryTrades() {
     filteredTrades.forEach(trade => {
         historyTradesList.appendChild(createTradeCard(trade));
     });
+}
+
+// Analytics Charting
+function initChart() {
+    const ctx = document.getElementById('pnlChart');
+    if (!ctx) return;
+    
+    Chart.defaults.color = '#9499a5';
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    
+    pnlChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: getChartData(),
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(10, 11, 15, 0.9)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    borderWidth: 1,
+                    padding: 12,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.parsed.y !== null) {
+                                label += new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(context.parsed.y);
+                            }
+                            return label;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: {
+                        callback: function(value) { return '$' + value; }
+                    }
+                },
+                x: {
+                    grid: { display: false }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index',
+            },
+            elements: {
+                line: { tension: 0.3 }
+            }
+        }
+    });
+}
+
+function updateChart() {
+    if (pnlChartInstance) {
+        pnlChartInstance.data = getChartData();
+        pnlChartInstance.update();
+    }
+}
+
+function getChartData() {
+    // Sort trades oldest to newest for chart progression
+    const sortedTrades = [...trades].sort((a,b) => new Date(a.date) - new Date(b.date));
+    
+    let labels = [];
+    let dataPoints = [];
+    let cumulative = 0;
+    
+    // Add 0 baseline
+    labels.push('Start');
+    dataPoints.push(0);
+    
+    sortedTrades.forEach(trade => {
+        const d = new Date(trade.date);
+        labels.push(`${d.getMonth()+1}/${d.getDate()} (${trade.pair})`);
+        cumulative += trade.pnl;
+        dataPoints.push(cumulative);
+    });
+    
+    const isProfitable = cumulative >= 0;
+    const color = isProfitable ? '#10b981' : '#ef4444';
+    
+    return {
+        labels: labels,
+        datasets: [{
+            label: 'Cumulative P&L',
+            data: dataPoints,
+            borderColor: color,
+            backgroundColor: isProfitable ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+            borderWidth: 3,
+            fill: true,
+            pointBackgroundColor: '#151820',
+            pointBorderColor: color,
+            pointBorderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6
+        }]
+    };
 }
 
 // Run init
