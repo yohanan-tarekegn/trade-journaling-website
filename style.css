@@ -293,7 +293,7 @@ input:focus, select:focus, textarea:focus {
     background-color: var(--bg-sidebar);
 }
 
-/* File Upload */
+/* File Upload & Previews */
 .file-upload-wrapper {
     border: 2px dashed var(--border-color);
     border-radius: var(--radius-md);
@@ -303,6 +303,7 @@ input:focus, select:focus, textarea:focus {
     background-color: rgba(0, 0, 0, 0.2);
     transition: all 0.2s ease;
     cursor: pointer;
+    min-height: 140px;
 }
 
 .file-upload-wrapper:hover, .file-upload-wrapper.dragover {
@@ -312,10 +313,7 @@ input:focus, select:focus, textarea:focus {
 
 .file-input {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: 0; left: 0; width: 100%; height: 100%;
     opacity: 0;
     cursor: pointer;
     z-index: 10;
@@ -332,17 +330,40 @@ input:focus, select:focus, textarea:focus {
     font-size: 0.875rem;
 }
 
-#image-preview-container {
-    position: relative;
-    border-radius: var(--radius-sm);
-    overflow: hidden;
+.preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 0.5rem;
     margin-top: 1rem;
+    position: relative;
+    z-index: 20;
 }
 
-#image-preview {
-    max-width: 100%;
+.preview-item {
+    position: relative;
+    aspect-ratio: 1;
     border-radius: var(--radius-sm);
-    display: block;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+}
+
+.preview-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.remove-thumb {
+    position: absolute;
+    top: 4px; right: 4px;
+    background: rgba(239, 68, 68, 0.9);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px; height: 20px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
 }
 
 .btn-icon {
@@ -671,7 +692,118 @@ input:focus, select:focus, textarea:focus {
     box-shadow: 0 0 0 2px var(--accent-primary);
 }
 
+/* Modal Overlay */
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100vh;
+    background: rgba(10, 11, 15, 0.85);
+    backdrop-filter: blur(8px);
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+    overflow-y: auto;
+}
+
+.modal-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    width: 100%;
+    max-width: 800px;
+    position: relative;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    max-height: 90vh; /* make scrollable */
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-close {
+    position: absolute;
+    top: 1rem; right: 1rem;
+    background: rgba(255,255,255,0.1);
+    border: none;
+    color: var(--text-primary);
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    font-size: 1.5rem;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+    z-index: 10;
+}
+
+.modal-close:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--loss-color);
+}
+
+#modal-body {
+    padding: 2.5rem;
+    overflow-y: auto;
+}
+
+.modal-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.modal-gallery img {
+    width: 100%;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    cursor: zoom-in;
+    transition: transform 0.2s;
+}
+
+.modal-gallery img:hover {
+    transform: scale(1.02);
+}
+
+.image-indicator {
+    position: absolute;
+    bottom: 8px; right: 8px;
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    backdrop-filter: blur(4px);
+    pointer-events: none;
+}
+
+/* Lightbox Overlay */
+.lightbox-overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100vh;
+    background: rgba(0, 0, 0, 0.95);
+    backdrop-filter: blur(10px);
+    z-index: 2000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+}
+
+#lightbox-img {
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: var(--radius-sm);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+    animation: zoomIn 0.3s ease-out forwards;
+}
+
 /* Animations */
+@keyframes zoomIn {
+    0% { opacity: 0; transform: scale(0.95); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
 @keyframes popup {
     0% { opacity: 0; transform: translateY(10px); }
     100% { opacity: 1; transform: translateY(0); }
